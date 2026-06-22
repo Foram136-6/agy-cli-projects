@@ -85,14 +85,63 @@
                     <button class="filter-pill" data-type="Announcement">Announcements <span class="pill-count" id="count-announcement">0</span></button>
                 </div>
             </div>
+            
+            <div class="advanced-controls">
+                <div class="controls-row">
+                    <div class="control-group">
+                        <label for="timeframe-select" class="control-label"><i class="fa-regular fa-clock"></i> Timeframe:</label>
+                        <select id="timeframe-select" class="control-select">
+                            <option value="all">All Time</option>
+                            <option value="7">Last 7 Days</option>
+                            <option value="30">Last 30 Days</option>
+                            <option value="90">Last 90 Days</option>
+                        </select>
+                    </div>
+                    
+                    <div class="control-group">
+                        <label for="sort-select" class="control-label"><i class="fa-solid fa-arrow-down-up-api"></i> Sort Order:</label>
+                        <select id="sort-select" class="control-select">
+                            <option value="desc">Newest First</option>
+                            <option value="asc">Oldest First</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="export-actions">
+                    <button id="export-md" class="btn btn-secondary btn-sm" title="Export matching notes to Markdown">
+                        <i class="fa-regular fa-file-lines"></i>
+                        <span>Export MD</span>
+                    </button>
+                    <button id="export-json" class="btn btn-secondary btn-sm" title="Export matching notes to JSON">
+                        <i class="fa-regular fa-file-code"></i>
+                        <span>Export JSON</span>
+                    </button>
+                </div>
+            </div>
         </section>
 
         <!-- Main Content (Feed) -->
         <main>
-            <!-- Loading State -->
-            <div id="loading-state" class="loading-state hidden">
-                <div class="loading-spinner"></div>
-                <p>Fetching latest release notes from Google Cloud...</p>
+            <!-- Loading State (Shimmer Skeletons) -->
+            <div id="loading-state" class="loading-state-container hidden">
+                <div class="skeleton-card">
+                    <div class="skeleton-line skeleton-header"></div>
+                    <div class="skeleton-line skeleton-body-1"></div>
+                    <div class="skeleton-line skeleton-body-2"></div>
+                    <div class="skeleton-line skeleton-body-3"></div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-line skeleton-header"></div>
+                    <div class="skeleton-line skeleton-body-1"></div>
+                    <div class="skeleton-line skeleton-body-2"></div>
+                    <div class="skeleton-line skeleton-body-3"></div>
+                </div>
+                <div class="skeleton-card">
+                    <div class="skeleton-line skeleton-header"></div>
+                    <div class="skeleton-line skeleton-body-1"></div>
+                    <div class="skeleton-line skeleton-body-2"></div>
+                    <div class="skeleton-line skeleton-body-3"></div>
+                </div>
             </div>
 
             <!-- Error State -->

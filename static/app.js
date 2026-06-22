@@ -1,7 +1,19 @@
-// Global state
+/**
+ * BigQuery Release Notes Explorer
+ * Frontend Controller & UI Coordinator
+ * 
+ * Organized into logical sections for readability and maintainability.
+ */
+
+// ============================================================================
+// 1. CONFIGURATION & STATE
+// ============================================================================
+
 let releasesData = [];
 let activeFilter = 'all';
 let searchQuery = '';
+let timeframeFilter = 'all';
+let sortOrder = 'desc';
 
 // Icons mapping for note types
 const badgeIcons = {
@@ -12,7 +24,10 @@ const badgeIcons = {
     'Announcement': 'fa-solid fa-bullhorn'
 };
 
-// DOM elements
+// ============================================================================
+// 2. DOM ELEMENTS
+// ============================================================================
+
 const elements = {
     refreshBtn: document.getElementById('refresh-btn'),
     spinner: document.getElementById('spinner'),
@@ -25,27 +40,94 @@ const elements = {
     errorMessage: document.getElementById('error-message'),
     emptyState: document.getElementById('empty-state'),
     retryBtn: document.getElementById('retry-btn'),
-    // Stats elements
+    
+    // Stats dashboard elements
     statFeatures: document.getElementById('stat-features'),
     statIssues: document.getElementById('stat-issues'),
     statChanges: document.getElementById('stat-changes'),
     statSync: document.getElementById('stat-sync'),
-    // Pill counts
+    
+    // Filter badge count elements
     countAll: document.getElementById('count-all'),
     countFeature: document.getElementById('count-feature'),
     countChange: document.getElementById('count-change'),
     countIssue: document.getElementById('count-issue'),
     countBreaking: document.getElementById('count-breaking'),
-    countAnnouncement: document.getElementById('count-announcement')
+    countAnnouncement: document.getElementById('count-announcement'),
+    
+    // Advanced controls
+    timeframeSelect: document.getElementById('timeframe-select'),
+    sortSelect: document.getElementById('sort-select'),
+    exportMdBtn: document.getElementById('export-md'),
+    exportJsonBtn: document.getElementById('export-json')
 };
 
-// Initialize Application
+// ============================================================================
+// 3. INITIALIZATION & LISTENERS
+// ============================================================================
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchReleases();
     setupEventListeners();
 });
 
-// Fetch Release Notes from API
+function setupEventListeners() {
+    // Refresh & Retry
+    elements.refreshBtn.addEventListener('click', () => fetchReleases(true));
+    elements.retryBtn.addEventListener('click', () => fetchReleases(true));
+    
+    // Live Search input
+    elements.searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value.toLowerCase().trim();
+        if (searchQuery) {
+            elements.clearBtn.classList.remove('hidden');
+        } else {
+            elements.clearBtn.classList.add('hidden');
+        }
+        filterAndRender();
+    });
+    
+    // Clear Search Input button
+    elements.clearBtn.addEventListener('click', () => {
+        elements.searchInput.value = '';
+        searchQuery = '';
+        elements.clearBtn.classList.add('hidden');
+        filterAndRender();
+    });
+    
+    // Filter Pills clicks
+    elements.filterPills.addEventListener('click', (e) => {
+        const pill = e.target.closest('.filter-pill');
+        if (!pill) return;
+        
+        document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
+        pill.classList.add('active');
+        
+        activeFilter = pill.dataset.type;
+        filterAndRender();
+    });
+
+    // Timeframe select dropdown
+    elements.timeframeSelect.addEventListener('change', (e) => {
+        timeframeFilter = e.target.value;
+        filterAndRender();
+    });
+
+    // Sort Order select dropdown
+    elements.sortSelect.addEventListener('change', (e) => {
+        sortOrder = e.target.value;
+        filterAndRender();
+    });
+
+    // Export triggers
+    elements.exportMdBtn.addEventListener('click', exportToMarkdown);
+    elements.exportJsonBtn.addEventListener('click', exportToJson);
+}
+
+// ============================================================================
+// 4. API & DATA FETCHING
+// ============================================================================
+
 async function fetchReleases(forceRefresh = false) {
     showLoading();
     try {
@@ -61,7 +143,7 @@ async function fetchReleases(forceRefresh = false) {
             throw new Error(data.error);
         }
         
-        // Pre-calculate plain text content for search optimization
+        // Clean & cache data, pre-calculating plain text representation for searching
         const tempDiv = document.createElement('div');
         releasesData = data.map(entry => {
             entry.notes = entry.notes.map(note => {
@@ -81,111 +163,35 @@ async function fetchReleases(forceRefresh = false) {
     }
 }
 
-// Setup Event Listeners
-function setupEventListeners() {
-    elements.refreshBtn.addEventListener('click', () => fetchReleases(true));
-    elements.retryBtn.addEventListener('click', () => fetchReleases(true));
-    
-    // Live Search
-    elements.searchInput.addEventListener('input', (e) => {
-        searchQuery = e.target.value.toLowerCase().trim();
-        if (searchQuery) {
-            elements.clearBtn.classList.remove('hidden');
-        } else {
-            elements.clearBtn.classList.add('hidden');
-        }
-        filterAndRender();
-    });
-    
-    // Clear Search Input
-    elements.clearBtn.addEventListener('click', () => {
-        elements.searchInput.value = '';
-        searchQuery = '';
-        elements.clearBtn.classList.add('hidden');
-        filterAndRender();
-    });
-    
-    // Filter pills click
-    elements.filterPills.addEventListener('click', (e) => {
-        const pill = e.target.closest('.filter-pill');
-        if (!pill) return;
-        
-        // Remove active class from all pills
-        document.querySelectorAll('.filter-pill').forEach(btn => btn.classList.remove('active'));
-        // Add active class to clicked pill
-        pill.classList.add('active');
-        
-        activeFilter = pill.dataset.type;
-        filterAndRender();
-    });
-}
+// ============================================================================
+// 5. RENDERING & HTML TRAVERSAL ENGINE
+// ============================================================================
 
-// Update last fetched timestamp
-function updateLastSyncTime() {
-    const now = new Date();
-    elements.statSync.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-}
-
-// Render counts dynamically based on search query
-function renderStats() {
-    let featuresCount = 0;
-    let issuesCount = 0;
-    let changesCount = 0;
-    let breakingCount = 0;
-    let announcementsCount = 0;
-    
-    releasesData.forEach(entry => {
-        entry.notes.forEach(note => {
-            // Filter by search query only (not active filter) for pill counts
-            const textToSearch = `${entry.date} ${note.type} ${note.plainText}`.toLowerCase();
-            const matchesSearch = textToSearch.includes(searchQuery);
-            
-            if (matchesSearch) {
-                if (note.type === 'Feature') featuresCount++;
-                else if (note.type === 'Issue') issuesCount++;
-                else if (note.type === 'Breaking') breakingCount++;
-                else if (note.type === 'Change') changesCount++;
-                else if (note.type === 'Announcement') announcementsCount++;
-            }
-        });
-    });
-    
-    // Update Dashboard Cards
-    elements.statFeatures.textContent = featuresCount;
-    elements.statIssues.textContent = issuesCount + breakingCount;
-    elements.statChanges.textContent = changesCount + announcementsCount;
-    
-    // Update Pill Badge counts
-    elements.countAll.textContent = featuresCount + issuesCount + breakingCount + changesCount + announcementsCount;
-    elements.countFeature.textContent = featuresCount;
-    elements.countChange.textContent = changesCount;
-    elements.countIssue.textContent = issuesCount;
-    elements.countBreaking.textContent = breakingCount;
-    elements.countAnnouncement.textContent = announcementsCount;
-}
-
-// Filter notes and Render to DOM
 function filterAndRender() {
-    // Dynamic updates of stats and pill counts based on search query
     renderStats();
     
     elements.notesList.innerHTML = '';
     let renderedCount = 0;
     
-    releasesData.forEach(entry => {
-        // Filter subnotes of this entry
+    // Apply sorting
+    const sortedEntries = [...releasesData].sort((a, b) => {
+        const dateA = new Date(a.updated);
+        const dateB = new Date(b.updated);
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+    
+    sortedEntries.forEach(entry => {
+        // Timeframe boundary checks
+        if (!matchesTimeframe(entry.updated)) return;
+
+        // Note type & query matching
         const filteredNotes = entry.notes.filter(note => {
-            // Check note type
             const matchesFilter = activeFilter === 'all' || note.type === activeFilter;
-            
-            // Check search query (using HTML-stripped plainText)
             const textToSearch = `${entry.date} ${note.type} ${note.plainText}`.toLowerCase();
             const matchesSearch = textToSearch.includes(searchQuery);
-            
             return matchesFilter && matchesSearch;
         });
         
-        // If there are notes matching after filtering, render the release card
         if (filteredNotes.length > 0) {
             renderedCount++;
             const entryCard = createEntryCard(entry, filteredNotes);
@@ -193,7 +199,7 @@ function filterAndRender() {
         }
     });
     
-    // Toggle empty state
+    // Toggle Empty State UI
     if (renderedCount === 0) {
         elements.emptyState.classList.remove('hidden');
     } else {
@@ -201,7 +207,6 @@ function filterAndRender() {
     }
 }
 
-// Create DOM Node for each Release Group Entry
 function createEntryCard(entry, filteredNotes) {
     const card = document.createElement('div');
     card.className = 'release-group';
@@ -218,17 +223,14 @@ function createEntryCard(entry, filteredNotes) {
             <i class="fa-solid fa-arrow-up-right-from-square"></i>
         </a>
     `;
-    
     card.appendChild(header);
     
-    // Render filtered sub-notes inside the group card
     filteredNotes.forEach(note => {
         const subNote = document.createElement('div');
         subNote.className = 'sub-note';
         
         const noteHeader = document.createElement('div');
         noteHeader.className = 'sub-note-header';
-        
         const iconClass = badgeIcons[note.type] || 'fa-solid fa-info';
         
         noteHeader.innerHTML = `
@@ -248,20 +250,33 @@ function createEntryCard(entry, filteredNotes) {
             </div>
         `;
         
-        // Add event listeners to action buttons
+        // Clipboard action listener
         const copyBtn = noteHeader.querySelector('.copy-btn');
         copyBtn.addEventListener('click', () => {
             copyUpdate(entry.date, note.type, note.plainText, entry.link);
         });
         
+        // Twitter sharing listener with visual click feedback
         const tweetBtn = noteHeader.querySelector('.tweet-btn');
         tweetBtn.addEventListener('click', () => {
+            const originalHTML = tweetBtn.innerHTML;
+            tweetBtn.innerHTML = `<i class="fa-solid fa-check"></i> <span>Sharing...</span>`;
+            tweetBtn.disabled = true;
+            
             tweetUpdate(entry.date, note.type, note.plainText, entry.link);
+            
+            setTimeout(() => {
+                tweetBtn.innerHTML = originalHTML;
+                tweetBtn.disabled = false;
+            }, 1500);
         });
         
         const noteBody = document.createElement('div');
         noteBody.className = 'note-body';
-        noteBody.innerHTML = note.content;
+        
+        // Format launch stages (GA/Preview) and apply search text highlighting safely
+        const formattedHtml = formatLaunchStages(note.content);
+        noteBody.innerHTML = highlightHTML(formattedHtml, searchQuery);
         
         subNote.appendChild(noteHeader);
         subNote.appendChild(noteBody);
@@ -271,7 +286,86 @@ function createEntryCard(entry, filteredNotes) {
     return card;
 }
 
-// Copy update text to clipboard
+// HTML-safe Launch Stage badge formatting via DOM node traversal
+function formatLaunchStages(html) {
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    function traverse(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            let val = node.nodeValue;
+            let changed = false;
+            
+            if (/Preview/g.test(val)) {
+                val = val.replace(/Preview/g, '<span class="stage-badge stage-preview"><i class="fa-solid fa-flask"></i> Preview</span>');
+                changed = true;
+            }
+            
+            if (/generally available \(GA\)/gi.test(val)) {
+                val = val.replace(/generally available \(GA\)/gi, '<span class="stage-badge stage-ga"><i class="fa-solid fa-circle-check"></i> GA</span>');
+                changed = true;
+            } else if (/generally available/gi.test(val)) {
+                val = val.replace(/generally available/gi, '<span class="stage-badge stage-ga"><i class="fa-solid fa-circle-check"></i> GA</span>');
+                changed = true;
+            } else if (/\bGA\b/g.test(val)) {
+                val = val.replace(/\bGA\b/g, '<span class="stage-badge stage-ga"><i class="fa-solid fa-circle-check"></i> GA</span>');
+                changed = true;
+            }
+            
+            if (changed) {
+                const span = document.createElement('span');
+                span.innerHTML = val;
+                node.parentNode.replaceChild(span, node);
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            // Skip traversing already formatted stage badges
+            if (node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE' && !node.classList.contains('stage-badge')) {
+                const children = Array.from(node.childNodes);
+                for (const child of children) {
+                    traverse(child);
+                }
+            }
+        }
+    }
+    traverse(temp);
+    return temp.innerHTML;
+}
+
+// HTML-safe query match highlighting via DOM node traversal
+function highlightHTML(html, query) {
+    if (!query) return html;
+    
+    const temp = document.createElement('div');
+    temp.innerHTML = html;
+    
+    const regex = new RegExp(`(${escapeRegExp(query)})`, 'gi');
+    
+    function traverse(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            const val = node.nodeValue;
+            if (val.toLowerCase().includes(query.toLowerCase())) {
+                const span = document.createElement('span');
+                span.innerHTML = val.replace(regex, '<mark class="highlight">$1</mark>');
+                node.parentNode.replaceChild(span, node);
+            }
+        } else if (node.nodeType === Node.ELEMENT_NODE) {
+            if (node.tagName !== 'SCRIPT' && node.tagName !== 'STYLE') {
+                const children = Array.from(node.childNodes);
+                for (const child of children) {
+                    traverse(child);
+                }
+            }
+        }
+    }
+    
+    traverse(temp);
+    return temp.innerHTML;
+}
+
+// ============================================================================
+// 6. ACTIONS & SHARE FEATURES
+// ============================================================================
+
 async function copyUpdate(date, type, plainText, link) {
     const textToCopy = `BigQuery Update [${date}] • ${type}\n\n${plainText}\n\nRead more: ${link}`;
     try {
@@ -279,7 +373,6 @@ async function copyUpdate(date, type, plainText, link) {
         showToast('Copied to clipboard!');
     } catch (err) {
         console.error('Failed to copy text: ', err);
-        // Fallback for older browsers or insecure contexts
         const textarea = document.createElement('textarea');
         textarea.value = textToCopy;
         textarea.style.position = 'fixed';
@@ -295,30 +388,174 @@ async function copyUpdate(date, type, plainText, link) {
     }
 }
 
-// Formats the update text and opens a Twitter/X share intent
 function tweetUpdate(date, type, plainText, link) {
+    const hashtags = ' #BigQuery #GoogleCloud #GCP';
     const prefix = `BigQuery Update [${date}] • ${type}\n\n`;
     
-    // Twitter limit: 280 chars. 
-    // Links count as 23 characters automatically.
+    // Character boundaries (Twitter limit: 280, t.co link counts as 23 characters)
     const prefixLen = prefix.length;
     const linkLen = 23; 
+    const tagsLen = hashtags.length;
     const buffer = 10;
     
-    const maxTextLen = 280 - prefixLen - linkLen - buffer;
+    const maxTextLen = 280 - prefixLen - linkLen - tagsLen - buffer;
     
     let textContent = plainText;
     if (textContent.length > maxTextLen) {
         textContent = textContent.substring(0, maxTextLen - 3) + "...";
     }
     
-    const tweetText = `${prefix}${textContent}`;
+    const tweetText = `${prefix}${textContent}${hashtags}`;
     const twitterIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}&url=${encodeURIComponent(link)}`;
     
     window.open(twitterIntentUrl, '_blank');
 }
 
-// Toast Notification System
+function getFilteredData() {
+    const filtered = [];
+    const sortedEntries = [...releasesData].sort((a, b) => {
+        const dateA = new Date(a.updated);
+        const dateB = new Date(b.updated);
+        return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+    });
+
+    sortedEntries.forEach(entry => {
+        if (!matchesTimeframe(entry.updated)) return;
+
+        const filteredNotes = entry.notes.filter(note => {
+            const matchesFilter = activeFilter === 'all' || note.type === activeFilter;
+            const textToSearch = `${entry.date} ${note.type} ${note.plainText}`.toLowerCase();
+            const matchesSearch = textToSearch.includes(searchQuery);
+            return matchesFilter && matchesSearch;
+        });
+
+        if (filteredNotes.length > 0) {
+            filtered.push({
+                date: entry.date,
+                updated: entry.updated,
+                link: entry.link,
+                notes: filteredNotes.map(n => ({ type: n.type, content: n.content, plainText: n.plainText }))
+            });
+        }
+    });
+
+    return filtered;
+}
+
+function exportToMarkdown() {
+    const data = getFilteredData();
+    if (data.length === 0) {
+        showToast('No data to export!');
+        return;
+    }
+
+    let md = `# BigQuery Release Notes Export\n`;
+    md += `Generated on: ${new Date().toLocaleString()}\n`;
+    md += `Filters - Search: "${searchQuery || 'None'}", Type: "${activeFilter}", Timeframe: "${timeframeFilter}"\n\n`;
+    md += `---\n\n`;
+
+    data.forEach(entry => {
+        md += `## 📅 ${entry.date}\n`;
+        md += `*Official Link: [Google Cloud Release Notes](${entry.link})*\n\n`;
+        
+        entry.notes.forEach(note => {
+            md += `### 🏷️ ${note.type}\n`;
+            md += `${note.plainText}\n\n`;
+        });
+        
+        md += `---\n\n`;
+    });
+
+    const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+    triggerDownload(blob, `bigquery_release_notes_${getTimestamp()}.md`);
+    showToast('Markdown exported!');
+}
+
+function exportToJson() {
+    const data = getFilteredData();
+    if (data.length === 0) {
+        showToast('No data to export!');
+        return;
+    }
+
+    const jsonStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json;charset=utf-8;' });
+    triggerDownload(blob, `bigquery_release_notes_${getTimestamp()}.json`);
+    showToast('JSON exported!');
+}
+
+// ============================================================================
+// 7. UI STATE UTILITIES
+// ============================================================================
+
+function matchesTimeframe(entryUpdated) {
+    if (timeframeFilter === 'all') return true;
+    const now = new Date();
+    const entryDate = new Date(entryUpdated);
+    const diffDays = Math.ceil((now - entryDate) / (1000 * 60 * 60 * 24));
+    return diffDays <= parseInt(timeframeFilter);
+}
+
+function updateLastSyncTime() {
+    const now = new Date();
+    elements.statSync.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+
+function renderStats() {
+    let featuresCount = 0;
+    let issuesCount = 0;
+    let changesCount = 0;
+    let breakingCount = 0;
+    let announcementsCount = 0;
+    
+    releasesData.forEach(entry => {
+        if (!matchesTimeframe(entry.updated)) return;
+
+        entry.notes.forEach(note => {
+            const textToSearch = `${entry.date} ${note.type} ${note.plainText}`.toLowerCase();
+            const matchesSearch = textToSearch.includes(searchQuery);
+            
+            if (matchesSearch) {
+                if (note.type === 'Feature') featuresCount++;
+                else if (note.type === 'Issue') issuesCount++;
+                else if (note.type === 'Breaking') breakingCount++;
+                else if (note.type === 'Change') changesCount++;
+                else if (note.type === 'Announcement') announcementsCount++;
+            }
+        });
+    });
+    
+    elements.statFeatures.textContent = featuresCount;
+    elements.statIssues.textContent = issuesCount + breakingCount;
+    elements.statChanges.textContent = changesCount + announcementsCount;
+    
+    elements.countAll.textContent = featuresCount + issuesCount + breakingCount + changesCount + announcementsCount;
+    elements.countFeature.textContent = featuresCount;
+    elements.countChange.textContent = changesCount;
+    elements.countIssue.textContent = issuesCount;
+    elements.countBreaking.textContent = breakingCount;
+    elements.countAnnouncement.textContent = announcementsCount;
+}
+
+function triggerDownload(blob, filename) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
+function getTimestamp() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function showToast(message) {
     const container = document.getElementById('toast-container');
     if (!container) return;
@@ -329,37 +566,35 @@ function showToast(message) {
         <i class="fa-solid fa-circle-check" style="color: var(--color-feature);"></i>
         <span>${message}</span>
     `;
-    
     container.appendChild(toast);
     
-    // Remove toast after animation completes (3 seconds)
     setTimeout(() => {
         toast.remove();
     }, 3000);
 }
 
-// Display UI helper states
 function showLoading() {
     elements.spinner.classList.add('spinning');
     elements.refreshBtn.disabled = true;
     elements.loadingState.classList.remove('hidden');
+    elements.notesList.classList.add('hidden');
     elements.errorState.classList.add('hidden');
     elements.emptyState.classList.add('hidden');
 }
 
-// Show standard content state
 function showContent() {
     elements.spinner.classList.remove('spinning');
     elements.refreshBtn.disabled = false;
     elements.loadingState.classList.add('hidden');
+    elements.notesList.classList.remove('hidden');
 }
 
-// Show error state
 function showError(msg) {
     elements.spinner.classList.remove('spinning');
     elements.refreshBtn.disabled = false;
     elements.loadingState.classList.add('hidden');
     elements.notesList.innerHTML = '';
+    elements.notesList.classList.add('hidden');
     elements.errorMessage.textContent = msg;
     elements.errorState.classList.remove('hidden');
 }
