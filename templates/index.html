@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Explorer</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="stars-overlay"></div>
+    <div class="glow-bg"></div>
+
+    <div class="container">
+        <!-- Header Section -->
+        <header>
+            <div class="header-logo">
+                <i class="fa-solid fa-circle-nodes logo-icon"></i>
+                <div class="logo-text">
+                    <h1>BigQuery</h1>
+                    <span>Release Notes Explorer</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <button id="refresh-btn" class="btn btn-primary" title="Refresh Release Notes">
+                    <i class="fa-solid fa-arrows-rotate refresh-icon" id="spinner"></i>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats Dashboard -->
+        <section class="stats-dashboard">
+            <div class="stat-card">
+                <div class="stat-icon feature-color"><i class="fa-solid fa-wand-magic-sparkles"></i></div>
+                <div class="stat-info">
+                    <h3 id="stat-features">0</h3>
+                    <p>Features</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon issue-color"><i class="fa-solid fa-triangle-exclamation"></i></div>
+                <div class="stat-info">
+                    <h3 id="stat-issues">0</h3>
+                    <p>Issues & Breaking</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon change-color"><i class="fa-solid fa-code-compare"></i></div>
+                <div class="stat-info">
+                    <h3 id="stat-changes">0</h3>
+                    <p>Changes & Announcements</p>
+                </div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon sync-color"><i class="fa-solid fa-clock"></i></div>
+                <div class="stat-info">
+                    <h3 id="stat-sync">Never</h3>
+                    <p>Last Fetched</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Control Bar (Search & Filter) -->
+        <section class="control-bar">
+            <div class="search-container">
+                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                <input type="text" id="search-input" placeholder="Search release notes (e.g. Gemini, SQL, datasets)...">
+                <i class="fa-solid fa-circle-xmark clear-icon hidden" id="search-clear"></i>
+            </div>
+            <div class="filter-wrapper">
+                <span class="filter-label">Filter by Type:</span>
+                <div class="filter-pills" id="filter-pills">
+                    <button class="filter-pill active" data-type="all">All <span class="pill-count" id="count-all">0</span></button>
+                    <button class="filter-pill" data-type="Feature">Features <span class="pill-count" id="count-feature">0</span></button>
+                    <button class="filter-pill" data-type="Change">Changes <span class="pill-count" id="count-change">0</span></button>
+                    <button class="filter-pill" data-type="Issue">Issues <span class="pill-count" id="count-issue">0</span></button>
+                    <button class="filter-pill" data-type="Breaking">Breaking <span class="pill-count" id="count-breaking">0</span></button>
+                    <button class="filter-pill" data-type="Announcement">Announcements <span class="pill-count" id="count-announcement">0</span></button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Main Content (Feed) -->
+        <main>
+            <!-- Loading State -->
+            <div id="loading-state" class="loading-state hidden">
+                <div class="loading-spinner"></div>
+                <p>Fetching latest release notes from Google Cloud...</p>
+            </div>
+
+            <!-- Error State -->
+            <div id="error-state" class="error-state hidden">
+                <i class="fa-solid fa-circle-xmark error-icon"></i>
+                <h2>Failed to load release notes</h2>
+                <p id="error-message">Unknown error occurred</p>
+                <button id="retry-btn" class="btn btn-secondary">Retry</button>
+            </div>
+
+            <!-- Empty State -->
+            <div id="empty-state" class="empty-state hidden">
+                <i class="fa-solid fa-cubes-stacked empty-icon"></i>
+                <h2>No release notes match your search</h2>
+                <p>Try refining your search terms or changing filters.</p>
+            </div>
+
+            <!-- Notes List -->
+            <div id="notes-list" class="notes-list">
+                <!-- Entries populated dynamically -->
+            </div>
+        </main>
+
+        <footer>
+            <p>BigQuery Release Notes Explorer &bull; Live Feed &bull; Powered by Flask</p>
+        </footer>
+    </div>
+
+    <!-- Custom JavaScript -->
+    <script src="/static/app.js"></script>
+    <div id="toast-container" class="toast-container"></div>
+</body>
+</html>
